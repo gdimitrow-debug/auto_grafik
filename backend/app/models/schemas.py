@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from typing import Dict, List, Literal, Optional
@@ -17,9 +18,18 @@ class EmployeeInput(BaseModel):
     id: str
     name: str
     role: str = ""
-    start_day: int = Field(ge=1, le=31)
-    first_shift: str
+    start_day: Optional[int] = Field(default=None, ge=1, le=31)
+    first_shift: Optional[str] = None
     is_cover: bool = False
+
+    @model_validator(mode="after")
+    def validate_required_fields(self) -> "EmployeeInput":
+        if not self.is_cover:
+            if self.start_day is None:
+                raise ValueError(f"Employee {self.id} must define start_day.")
+            if self.first_shift is None:
+                raise ValueError(f"Employee {self.id} must define first_shift.")
+        return self
 
 
 class ScheduleRequest(BaseModel):
@@ -41,7 +51,7 @@ class ScheduleRequest(BaseModel):
     def validate_references(self) -> "ScheduleRequest":
         shift_ids = {shift.id for shift in self.shifts}
         for employee in self.employees:
-            if employee.first_shift not in shift_ids:
+            if employee.first_shift is not None and employee.first_shift not in shift_ids:
                 raise ValueError(f"Employee {employee.id} references unknown first_shift '{employee.first_shift}'.")
         return self
 
@@ -77,6 +87,7 @@ class EmployeeStats(BaseModel):
 
 class ScheduleResponse(BaseModel):
     schedule: List[ScheduleAssignment]
+    input_warnings: List[ViolationEntry]
     hard_violations: List[ViolationEntry]
     soft_violations: List[ViolationEntry]
     employee_stats: List[EmployeeStats]

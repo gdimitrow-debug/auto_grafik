@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from copy import deepcopy
@@ -92,7 +93,7 @@ def test_export_files_are_created(tmp_path: Path):
     assert csv_path.exists()
     assert xlsx_path.exists()
     csv_text = csv_path.read_text(encoding="utf-8-sig")
-    assert "»ÏÂ" in csv_text
+    assert "–ò–º–µ" in csv_text
     workbook = load_workbook(xlsx_path)
     assert "Schedule" in workbook.sheetnames
     assert "Summary" in workbook.sheetnames

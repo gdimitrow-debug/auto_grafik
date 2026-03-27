@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,9 +12,9 @@ def export_csv(payload: ScheduleRequest, response: ScheduleResponse, target_path
 
     days = get_days_in_month(payload.year, payload.month)
     target_path.parent.mkdir(parents=True, exist_ok=True)
-    with target_path.open("w", newline="", encoding="utf-8-sig") as handle:
+    with target_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
-        writer.writerow(["Èìå", "Äëúæíîñò", *[str(day) for day in range(1, days + 1)], "Îáùî ÷àñîâå"])
+        writer.writerow(["Ğ˜Ğ¼Ğµ", "Ğ”Ğ»ÑŠĞ¶Ğ½Ğ¾ÑÑ‚", *[str(day) for day in range(1, days + 1)], "ĞĞ±Ñ‰Ğ¾ Ñ‡Ğ°ÑĞ¾Ğ²Ğµ"])
         for stat in response.employee_stats:
             row = [stat.employee_name, stat.role]
             for day in range(1, days + 1):

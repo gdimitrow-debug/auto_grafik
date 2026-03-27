@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,7 +14,7 @@ def export_xlsx(payload: ScheduleRequest, response: ScheduleResponse, target_pat
     workbook = Workbook()
     schedule_sheet = workbook.active
     schedule_sheet.title = "Schedule"
-    schedule_sheet.append(["Име", "Длъжност", *[str(day) for day in range(1, days + 1)], "Общо часове"])
+    schedule_sheet.append(["РРјРµ", "Р”Р»СЉР¶РЅРѕСЃС‚", *[str(day) for day in range(1, days + 1)], "РћР±С‰Рѕ С‡Р°СЃРѕРІРµ"])
 
     for stat in response.employee_stats:
         row = [stat.employee_name, stat.role]

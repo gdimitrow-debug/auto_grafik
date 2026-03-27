@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,12 +11,26 @@ class PenaltyWeights:
     fairness_deviation: int = 3
     norm_overrun: int = 20
     low_hours: int = 3
-    uncovered_shift: int = 200
-    missing_first_shift: int = 120
-    pre_start_assignment: int = 120
-    rest_gap: int = 90
-    five_day_streak: int = 90
-    post_streak_rest: int = 90
+
+    # Dominating best-effort objective weights.
+    uncovered_shift: int = 10000000000
+    missing_first_shift: int = 100000000
+    hard_violation: int = 1000000
+
+
+@dataclass(frozen=True)
+class ScoreConfig:
+    base_score: int = 100
+    uncovered_shift_penalty: int = 40
+    missing_first_shift_penalty: int = 15
+    other_hard_penalty: int = 8
+    unbalanced_penalty: int = 6
+    consecutive_nights_penalty: int = 4
+    fairness_penalty: int = 3
+    norm_overrun_penalty: int = 10
+    soft_penalty_cap: int = 30
+    hard_penalty_cap: int = 80
 
 
 DEFAULT_WEIGHTS = PenaltyWeights()
+DEFAULT_SCORE_CONFIG = ScoreConfig()
