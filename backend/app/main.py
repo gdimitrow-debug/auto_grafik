@@ -12,7 +12,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://auto_grafik_front.onrender.com",
+        "https://auto-grafik-front.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
