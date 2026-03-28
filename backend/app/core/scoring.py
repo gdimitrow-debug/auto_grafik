@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -9,13 +9,15 @@ class PenaltyWeights:
     unbalanced_shifts: int = 10
     consecutive_nights: int = 5
     fairness_deviation: int = 3
-    norm_overrun: int = 20
     low_hours: int = 3
 
     # Dominating best-effort objective weights.
     uncovered_shift: int = 10000000000
     missing_first_shift: int = 100000000
     hard_violation: int = 1000000
+    # Keep cover usage cheap enough that it never wins over coverage.
+    cover_shift: int = 1000
+    cover_shift_early_bias: int = 10
 
 
 @dataclass(frozen=True)
@@ -27,9 +29,10 @@ class ScoreConfig:
     unbalanced_penalty: int = 6
     consecutive_nights_penalty: int = 4
     fairness_penalty: int = 3
-    norm_overrun_penalty: int = 10
+    cover_usage_penalty: int = 1
     soft_penalty_cap: int = 30
     hard_penalty_cap: int = 80
+    cover_penalty_cap: int = 12
 
 
 DEFAULT_WEIGHTS = PenaltyWeights()

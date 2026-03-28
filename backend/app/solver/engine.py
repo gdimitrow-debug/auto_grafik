@@ -26,7 +26,6 @@ class ShiftMeta:
 @dataclass(frozen=True)
 class SolveOptions:
     allow_cover: bool
-    allow_norm_overrun: bool
     allow_hard_relaxation: bool
 
 
@@ -83,24 +82,24 @@ def solve_schedule(
     is_window_valid, message = validate_request_window(payload)
     if not is_window_valid:
         violation = ViolationEntry(code="invalid_start_day", message=message, severity="hard")
-        explanation = build_explanation(False, False, False, input_warnings, [violation], [])
+        explanation = build_explanation(False, False, False, input_warnings, [violation], [], [], payload.norm_hours)
         return ScheduleResponse(
             schedule=[],
             input_warnings=input_warnings,
             hard_violations=[violation],
             soft_violations=[],
             employee_stats=[],
-            score=_compute_score(score_config, [violation], []),
+            score=_compute_score(score_config, [violation], [], []),
             is_valid=False,
             used_cover_employee=False,
             used_best_effort=False,
             explanation=explanation,
         )
 
-    strict_result = _run_solver(payload, SolveOptions(False, False, False), weights, score_config)
+    strict_result = _run_solver(payload, SolveOptions(False, False), weights, score_config)
     if strict_result is not None:
         strict_result.input_warnings = input_warnings
-        strict_result.score = _compute_score(score_config, strict_result.hard_violations, strict_result.soft_violations)
+        strict_result.score = _compute_score(score_config, strict_result.hard_violations, strict_result.soft_violations, strict_result.employee_stats)
         strict_result.explanation = build_explanation(
             strict_result.used_best_effort,
             not strict_result.used_best_effort,
@@ -108,13 +107,15 @@ def solve_schedule(
             strict_result.input_warnings,
             strict_result.hard_violations,
             strict_result.soft_violations,
+            strict_result.employee_stats,
+            payload.norm_hours,
         )
         return strict_result
 
-    best_effort_valid = _run_solver(payload, SolveOptions(True, True, False), weights, score_config)
+    best_effort_valid = _run_solver(payload, SolveOptions(True, False), weights, score_config)
     if best_effort_valid is not None:
         best_effort_valid.input_warnings = input_warnings
-        best_effort_valid.score = _compute_score(score_config, best_effort_valid.hard_violations, best_effort_valid.soft_violations)
+        best_effort_valid.score = _compute_score(score_config, best_effort_valid.hard_violations, best_effort_valid.soft_violations, best_effort_valid.employee_stats)
         best_effort_valid.explanation = build_explanation(
             best_effort_valid.used_best_effort,
             False,
@@ -122,13 +123,15 @@ def solve_schedule(
             best_effort_valid.input_warnings,
             best_effort_valid.hard_violations,
             best_effort_valid.soft_violations,
+            best_effort_valid.employee_stats,
+            payload.norm_hours,
         )
         return best_effort_valid
 
-    fallback = _run_solver(payload, SolveOptions(True, True, True), weights, score_config)
+    fallback = _run_solver(payload, SolveOptions(True, True), weights, score_config)
     if fallback is not None:
         fallback.input_warnings = input_warnings
-        fallback.score = _compute_score(score_config, fallback.hard_violations, fallback.soft_violations)
+        fallback.score = _compute_score(score_config, fallback.hard_violations, fallback.soft_violations, fallback.employee_stats)
         fallback.explanation = build_explanation(
             fallback.used_best_effort,
             False,
@@ -136,6 +139,8 @@ def solve_schedule(
             fallback.input_warnings,
             fallback.hard_violations,
             fallback.soft_violations,
+            fallback.employee_stats,
+            payload.norm_hours,
         )
         return fallback
 
@@ -144,14 +149,14 @@ def solve_schedule(
         message="No solution could be produced, even in best effort fallback mode.",
         severity="hard",
     )
-    explanation = build_explanation(True, False, False, input_warnings, [violation], [])
+    explanation = build_explanation(True, False, False, input_warnings, [violation], [], [], payload.norm_hours)
     return ScheduleResponse(
         schedule=[],
         input_warnings=input_warnings,
         hard_violations=[violation],
         soft_violations=[],
         employee_stats=[],
-        score=_compute_score(score_config, [violation], []),
+        score=_compute_score(score_config, [violation], [], []),
         is_valid=False,
         used_cover_employee=False,
         used_best_effort=True,
@@ -180,6 +185,7 @@ def _run_solver(
     uncovered_terms: List[cp_model.IntVar] = []
     missing_first_terms: List[cp_model.IntVar] = []
     other_hard_violation_terms: List[cp_model.IntVar] = []
+    cover_usage_terms: List[cp_model.LinearExpr] = []
     soft_penalties: List[cp_model.LinearExpr] = []
     violation_vars: List[Tuple[cp_model.IntVar, str, Dict[str, object], str]] = []
 
@@ -193,6 +199,8 @@ def _run_solver(
                 var = model.NewBoolVar(f"x_e{employee_idx}_d{day}_{shift_id}")
                 assign[(employee_idx, day, shift_id)] = var
                 vars_for_day.append(var)
+                if employee.is_cover:
+                    cover_usage_terms.append(var * (weights.cover_shift + (days - day) * weights.cover_shift_early_bias))
 
             model.Add(sum(vars_for_day) == work[(employee_idx, day)])
             model.Add(sum(vars_for_day) <= 1)
@@ -237,8 +245,7 @@ def _run_solver(
             for day in day_range
             for shift_id in shift_ids
         )
-        max_norm = int(payload.norm_hours * 1.08) if options.allow_norm_overrun else payload.norm_hours
-        model.Add(total_hours <= max_norm)
+        model.Add(total_hours <= payload.norm_hours)
 
         if not employee.is_cover:
             preferred_floor = int(payload.norm_hours * 0.85)
@@ -246,12 +253,6 @@ def _run_solver(
             model.Add(low_hours >= preferred_floor - total_hours)
             model.Add(low_hours >= 0)
             soft_penalties.append(low_hours * weights.low_hours)
-
-        if options.allow_norm_overrun:
-            overrun = model.NewIntVar(0, max_norm, f"overrun_e{employee_idx}")
-            model.Add(overrun >= total_hours - payload.norm_hours)
-            model.Add(overrun >= 0)
-            soft_penalties.append(overrun * weights.norm_overrun)
 
         for day in range(1, days):
             for previous_shift in shift_ids:
@@ -378,11 +379,12 @@ def _run_solver(
             sum(uncovered_terms) * weights.uncovered_shift
             + sum(missing_first_terms) * weights.missing_first_shift
             + sum(other_hard_violation_terms) * weights.hard_violation
+            + sum(cover_usage_terms)
             + sum(soft_penalties)
             + sum(tie_break)
         )
     else:
-        model.Minimize(sum(soft_penalties) + sum(tie_break))
+        model.Minimize(sum(cover_usage_terms) + sum(soft_penalties) + sum(tie_break))
 
     solver = cp_model.CpSolver()
     solver.parameters.num_search_workers = 1
@@ -428,22 +430,11 @@ def _run_solver(
 
     employee_stats = _build_employee_stats(payload, employee_indexes, assignments_by_employee, shift_meta)
     soft_violations = _build_soft_violations(payload, employee_stats)
-    if options.allow_norm_overrun:
-        for stat in employee_stats:
-            if stat.total_hours > payload.norm_hours:
-                soft_violations.append(
-                    ViolationEntry(
-                        code="norm_overrun",
-                        message=f"Employee {stat.employee_name} exceeds norm hours with {stat.total_hours}h.",
-                        employee_id=stat.employee_id,
-                        severity="soft",
-                    )
-                )
 
     used_cover_employee = any(stat.is_cover and stat.total_shifts > 0 for stat in employee_stats)
-    used_best_effort = options.allow_cover or options.allow_norm_overrun or options.allow_hard_relaxation
-    score = _compute_score(score_config, hard_violations, soft_violations)
-    explanation = build_explanation(used_best_effort, not used_best_effort, used_cover_employee, [], hard_violations, soft_violations)
+    used_best_effort = options.allow_cover or options.allow_hard_relaxation
+    score = _compute_score(score_config, hard_violations, soft_violations, employee_stats)
+    explanation = build_explanation(used_best_effort, not used_best_effort, used_cover_employee, [], hard_violations, soft_violations, employee_stats, payload.norm_hours)
 
     return ScheduleResponse(
         schedule=sorted(schedule, key=lambda item: (item.day, item.shift_id, item.employee_name)),
@@ -459,9 +450,15 @@ def _run_solver(
     )
 
 
-def _compute_score(score_config: ScoreConfig, hard_violations: Sequence[ViolationEntry], soft_violations: Sequence[ViolationEntry]) -> int:
+def _compute_score(
+    score_config: ScoreConfig,
+    hard_violations: Sequence[ViolationEntry],
+    soft_violations: Sequence[ViolationEntry],
+    employee_stats: Sequence[EmployeeStats],
+) -> int:
     hard_penalty = 0
     soft_penalty = 0
+    cover_penalty = sum(stat.total_shifts for stat in employee_stats if stat.is_cover) * score_config.cover_usage_penalty
 
     for violation in hard_violations:
         if violation.code == "uncovered_shift":
@@ -478,12 +475,11 @@ def _compute_score(score_config: ScoreConfig, hard_violations: Sequence[Violatio
             soft_penalty += score_config.consecutive_nights_penalty
         elif violation.code in {"fairness_deviation", "below_preferred_hours"}:
             soft_penalty += score_config.fairness_penalty
-        elif violation.code == "norm_overrun":
-            soft_penalty += score_config.norm_overrun_penalty
 
     hard_penalty = min(hard_penalty, score_config.hard_penalty_cap)
     soft_penalty = min(soft_penalty, score_config.soft_penalty_cap)
-    return max(score_config.base_score - hard_penalty - soft_penalty, 0)
+    cover_penalty = min(cover_penalty, score_config.cover_penalty_cap)
+    return max(score_config.base_score - hard_penalty - soft_penalty - cover_penalty, 0)
 
 
 def _hard_violation_message(code: str, meta: Dict[str, object]) -> str:
@@ -573,15 +569,6 @@ def _build_soft_violations(payload: ScheduleRequest, employee_stats: Sequence[Em
                 ViolationEntry(
                     code="below_preferred_hours",
                     message=f"Employee {stat.employee_name} is below the preferred 85% hours threshold.",
-                    employee_id=stat.employee_id,
-                    severity="soft",
-                )
-            )
-        if stat.consecutive_night_pairs:
-            violations.append(
-                ViolationEntry(
-                    code="consecutive_night_shift_pair",
-                    message=f"Employee {stat.employee_name} has consecutive night shifts.",
                     employee_id=stat.employee_id,
                     severity="soft",
                 )
