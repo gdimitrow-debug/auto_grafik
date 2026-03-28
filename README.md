@@ -2,6 +2,13 @@
 
 Уеб инструмент за автоматично генериране на месечен график на служители с `FastAPI` backend, `OR-Tools CP-SAT` solver и `React + Vite` frontend.
 
+## Runtime
+
+- препоръчвана Python версия: `3.12.x`
+- проектът е подготвен и документиран за работа с `Python 3.12`
+- проектът е тестван като целева runtime конфигурация за `Python 3.12.x`
+- за Render задай `PYTHON_VERSION=3.12.10`
+
 ## Структура
 
 ```text
@@ -12,13 +19,18 @@ auto_grafik/
 
 ## Backend стартиране
 
+Използвай `Python 3.12.x` локално.
+
 ```bash
 cd backend
-python -m venv .venv
+python3.12 -m venv .venv
 .venv\\Scripts\\activate
+python -m pip install --upgrade pip
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
+
+Ако на Windows нямаш `python3.12` alias, използвай инсталираната Python 3.12 от launcher или пътя към нея.
 
 API ще бъде налично на `http://localhost:8000`.
 
@@ -31,6 +43,15 @@ npm run dev
 ```
 
 Frontend ще бъде наличен на `http://localhost:5173`.
+
+## Render настройка
+
+Задай следните runtime стойности:
+
+- `PYTHON_VERSION=3.12.10`
+- build/install command: `pip install -r backend/requirements.txt`
+- start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- working directory: `backend`
 
 ## Solver time limit
 
@@ -105,6 +126,12 @@ Soft constraints:
 - `num_search_workers = 1`;
 - `random_seed = 0`;
 - стабилен tie-break по фиксиран ред на служители, дни и смени.
+
+## OR-Tools съвместимост
+
+- проектът използва `ortools==9.15.6755`
+- за текущия solver код не са нужни API промени спрямо тази версия
+- използваните `CpModel`, `CpSolver`, `Add`, `AddAbsEquality`, `NewBoolVar`, `NewIntVar` и solver parameters остават съвместими
 
 ## Тестове
 

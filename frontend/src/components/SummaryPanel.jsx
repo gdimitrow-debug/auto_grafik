@@ -4,7 +4,9 @@ function ViolationList({ title, items }) {
   return (
     <div>
       <h3>{title}</h3>
-      {items.length === 0 ? <p>None</p> : (
+      {items.length === 0 ? (
+        <p>None</p>
+      ) : (
         <ul>
           {items.map((item, index) => (
             <li key={`${item.code}-${index}`}>{item.message}</li>
@@ -20,7 +22,9 @@ export function SummaryPanel({ result, error }) {
     <section className="panel">
       <h2>Summary</h2>
       {error && <p className="error">{error}</p>}
-      {!result ? <p>No result yet.</p> : (
+      {!result ? (
+        <p>No result yet.</p>
+      ) : (
         <>
           <div className="summary-grid">
             <div><strong>Score:</strong> {result.score}</div>
@@ -29,6 +33,7 @@ export function SummaryPanel({ result, error }) {
             <div><strong>Cover used:</strong> {String(result.used_cover_employee)}</div>
           </div>
           <p>{result.explanation}</p>
+          <ViolationList title="Input warnings" items={result.input_warnings || []} />
           <ViolationList title="Hard violations" items={result.hard_violations || []} />
           <ViolationList title="Soft violations" items={result.soft_violations || []} />
         </>

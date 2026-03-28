@@ -26,8 +26,8 @@ export default function App() {
     <main className="app-shell">
       <header className="hero">
         <p className="eyebrow">Auto Grafik</p>
-        <h1>Генератор на график за служители</h1>
-        <p>FastAPI + OR-Tools backend и React интерфейс за локална работа.</p>
+        <h1>Employee Schedule Generator</h1>
+        <p>FastAPI + OR-Tools backend with a simple React interface.</p>
       </header>
       <div className="layout">
         <ScheduleForm onSubmit={handleSubmit} loading={loading} />

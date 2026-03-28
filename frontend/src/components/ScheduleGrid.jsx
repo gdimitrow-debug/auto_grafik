@@ -2,7 +2,12 @@ import React from "react";
 
 export function ScheduleGrid({ result }) {
   if (!result || !result.employee_stats?.length) {
-    return <section className="panel"><h2>Schedule</h2><p>No schedule yet.</p></section>;
+    return (
+      <section className="panel">
+        <h2>Schedule</h2>
+        <p>No result yet.</p>
+      </section>
+    );
   }
 
   const days = Object.keys(result.employee_stats[0].assignments_by_day)
@@ -18,10 +23,10 @@ export function ScheduleGrid({ result }) {
         <table>
           <thead>
             <tr>
-              <th>Име</th>
-              <th>Длъжност</th>
+              <th>Name</th>
+              <th>Role</th>
               {dayList.map((day) => <th key={day}>{day}</th>)}
-              <th>Часове</th>
+              <th>Hours</th>
             </tr>
           </thead>
           <tbody>
