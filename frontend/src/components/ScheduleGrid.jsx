@@ -1,4 +1,4 @@
-export function ScheduleGrid({ result }) {
+﻿export function ScheduleGrid({ result }) {
   if (!result || !result.employee_stats?.length) {
     return null;
   }
@@ -18,6 +18,8 @@ export function ScheduleGrid({ result }) {
               <th>Name</th>
               <th>Role</th>
               {days.map((day) => <th key={day}>{day}</th>)}
+              <th>Day shifts</th>
+              <th>Night shifts</th>
               <th>Hours</th>
             </tr>
           </thead>
@@ -27,6 +29,8 @@ export function ScheduleGrid({ result }) {
                 <td>{stat.employee_name}</td>
                 <td>{stat.role}</td>
                 {days.map((day) => <td key={day}>{stat.assignments_by_day[day] || ""}</td>)}
+                <td>{stat.day_shifts}</td>
+                <td>{stat.night_shifts}</td>
                 <td>{stat.total_hours}</td>
               </tr>
             ))}
