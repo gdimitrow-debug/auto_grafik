@@ -1,43 +1,18 @@
-import React from "react";
+export function SummaryPanel({ result }) {
+  if (!result) return null;
 
-function ViolationList({ title, items }) {
-  return (
-    <div>
-      <h3>{title}</h3>
-      {items.length === 0 ? (
-        <p>None</p>
-      ) : (
-        <ul>
-          {items.map((item, index) => (
-            <li key={`${item.code}-${index}`}>{item.message}</li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-export function SummaryPanel({ result, error }) {
   return (
     <section className="panel">
-      <h2>Summary</h2>
-      {error && <p className="error">{error}</p>}
-      {!result ? (
-        <p>No result yet.</p>
-      ) : (
-        <>
-          <div className="summary-grid">
-            <div><strong>Score:</strong> {result.score}</div>
-            <div><strong>Valid:</strong> {String(result.is_valid)}</div>
-            <div><strong>Best effort:</strong> {String(result.used_best_effort)}</div>
-            <div><strong>Cover used:</strong> {String(result.used_cover_employee)}</div>
-          </div>
-          <p>{result.explanation}</p>
-          <ViolationList title="Input warnings" items={result.input_warnings || []} />
-          <ViolationList title="Hard violations" items={result.hard_violations || []} />
-          <ViolationList title="Soft violations" items={result.soft_violations || []} />
-        </>
-      )}
+      <h2>Result summary</h2>
+      <div className="summary-grid summary-grid-3">
+        <div><strong>Score:</strong> {result.score}</div>
+        <div><strong>Valid schedule:</strong> {String(result.is_valid)}</div>
+        <div><strong>Cover used:</strong> {String(result.used_cover_employee)}</div>
+        <div><strong>Best effort:</strong> {String(result.used_best_effort)}</div>
+        <div><strong>Input warnings:</strong> {result.input_warnings?.length || 0}</div>
+        <div><strong>Hard violations:</strong> {result.hard_violations?.length || 0}</div>
+        <div><strong>Soft violations:</strong> {result.soft_violations?.length || 0}</div>
+      </div>
     </section>
   );
 }
